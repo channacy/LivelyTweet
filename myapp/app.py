@@ -16,8 +16,35 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 oauth = OAuth(app)
 
-with open('/Users/channacyun/LivelyTweet/myapp/tweet_location.pkl', 'rb') as file:
-    model = pickle.load(file)
+with open('/Users/channacyun/LivelyTweet/myapp/classifier.pkl', 'rb') as file:
+    classifier = pickle.load(file)
+
+with open('/Users/channacyun/LivelyTweet/myapp/vectorizer.pkl', 'rb') as vectorizer_file:
+    counter = pickle.load(vectorizer_file)
+
+with open('/Users/channacyun/LivelyTweet/myapp/sentiment_vectorizer.pkl', 'rb') as sentiment_prediction_file:
+    NB_classifier = pickle.load(sentiment_prediction_file)
+
+# with open('/Users/channacyun/LivelyTweet/myapp/get_sentiment_prediction_file.pkl', 'rb') as get_sentiment_prediction_file:
+#     get_sentiment_prediction = pickle.load(get_sentiment_prediction_file)
+
+@app.route('/predictLocation',methods=["GET", "POST"])
+def predict():
+  tweetExample = "I love this baguette! I am eating one over the Effiel tower in France:)"
+  tweet_counts = counter.transform([tweetExample])
+  prediction = classifier.predict(tweet_counts)
+  if prediction == [0]:
+    location  = "New York"
+  elif prediction == [1]:
+    location = "London"
+  else:
+    location = "Paris"
+  return render_template('predict.html', prediction=location)
+
+@app.route("/predictPos", methods=["GET", "POST"])
+def predictPos():
+   tweetExample = "I love this baguette! I am eating one over the Effiel tower in France:)"
+   NB_classifier.predict(tweetExample)
 
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key = True)
@@ -69,6 +96,7 @@ def index():
         db.session.add(Todo(todo_text = request.form['todo']))
         db.session.commit()
     return render_template('index.html', todos = Todo.query.all(), template_form = TodoForm())
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
