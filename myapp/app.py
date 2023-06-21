@@ -22,8 +22,8 @@ with open('/Users/channacyun/LivelyTweet/myapp/classifier.pkl', 'rb') as file:
 with open('/Users/channacyun/LivelyTweet/myapp/vectorizer.pkl', 'rb') as vectorizer_file:
     counter = pickle.load(vectorizer_file)
 
-with open('/Users/channacyun/LivelyTweet/myapp/sentiment_vectorizer.pkl', 'rb') as sentiment_prediction_file:
-    NB_classifier = pickle.load(sentiment_prediction_file)
+# with open('/Users/channacyun/LivelyTweet/myapp/sentiment_vectorizer.pkl', 'rb') as sentiment_prediction_file:
+#     NB_classifier = pickle.load(sentiment_prediction_file)
 
 # with open('/Users/channacyun/LivelyTweet/myapp/get_sentiment_prediction_file.pkl', 'rb') as get_sentiment_prediction_file:
 #     get_sentiment_prediction = pickle.load(get_sentiment_prediction_file)
