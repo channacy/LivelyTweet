@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, PasswordField, BooleanField
 from wtforms.validators import DataRequired, Email, EqualTo
@@ -7,7 +7,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin, LoginManager, login_required, login_user, current_user
 from datetime import datetime
 from authlib.integrations.flask_client import OAuth
-import pickle 
+from helper import predictLocation, predictSentiment, predictVirality
+# import pickle 
+# from sklearn.preprocessing import scale
+# from sklearn.metrics.pairwise import euclidean_distances
+# from sklearn.neighbors import KNeighborsClassifier
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'mysecret'
@@ -16,36 +20,51 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 oauth = OAuth(app)
 
-with open('/Users/channacyun/LivelyTweet/myapp/classifier.pkl', 'rb') as file:
-    classifier = pickle.load(file)
+# with open('models/locationClassifier.pkl', 'rb') as location_classifier:
+#     locationClassifier = pickle.load(location_classifier)
 
-with open('/Users/channacyun/LivelyTweet/myapp/vectorizer.pkl', 'rb') as vectorizer_file:
-    counter = pickle.load(vectorizer_file)
+# with open('models/vectorizer.pkl', 'rb') as vectorizer_file:
+#     counter = pickle.load(vectorizer_file)
 
-# with open('/Users/channacyun/LivelyTweet/myapp/sentiment_vectorizer.pkl', 'rb') as sentiment_prediction_file:
-#     NB_classifier = pickle.load(sentiment_prediction_file)
+# with open('models/text_sentiment_vectorizer.pkl', 'rb') as sentiment_text_vectorizer:
+#     text_vectorizer = pickle.load(sentiment_text_vectorizer)
 
-# with open('/Users/channacyun/LivelyTweet/myapp/get_sentiment_prediction_file.pkl', 'rb') as get_sentiment_prediction_file:
-#     get_sentiment_prediction = pickle.load(get_sentiment_prediction_file)
+# with open('models/sentiment_model.pkl', 'rb') as sentiment_model:
+#     NB_classifier = pickle.load(sentiment_model)
 
-@app.route('/predictLocation',methods=["GET", "POST"])
-def predict():
-  tweetExample = "I love this baguette! I am eating one over the Effiel tower in France:)"
-  tweet_counts = counter.transform([tweetExample])
-  prediction = classifier.predict(tweet_counts)
-  if prediction == [0]:
-    location  = "New York"
-  elif prediction == [1]:
-    location = "London"
-  else:
-    location = "Paris"
-  return render_template('predict.html', prediction=location)
+# with open('models/virality_model.pkl', 'rb') as virality_model:
+#     virality_classifier = pickle.load(virality_model)
 
-@app.route("/predictPos", methods=["GET", "POST"])
-def predictPos():
-   tweetExample = "I love this baguette! I am eating one over the Effiel tower in France:)"
-   NB_classifier.predict(tweetExample)
+# @app.route('/predictLocation',methods=["GET"])
+# def predict():
+#   tweetExample = "I love this baguette! I am eating one over the Effiel tower in France:)"
+#   tweet_counts = counter.transform([tweetExample])
+#   prediction = locationClassifier.predict(tweet_counts)
+#   if prediction == [0]:
+#     location  = "New York"
+#   elif prediction == [1]:
+#     location = "London"
+#   else:
+#     location = "Paris"
+#   return render_template('predict.html', prediction=location)
 
+# @app.route("/predictPos", methods=["GET"])
+# def predictPos():
+#    tweetExample = ["I hate cs"]
+#    result = text_vectorizer.vectorizer.transform(tweetExample)
+#    prediction = NB_classifier.predict(result)
+#    if prediction == 0:
+#     return "Positive"
+#    else:
+#     return "Negative"
+
+# @app.route("/getVirality", methods=["GET"])
+# def getVirality():
+#     tweet_info = [[55, 100000, 1060, 5, 20, 30, 4]]
+#     scaled_tweet = scale(tweet_info, axis = 0)
+#     print(virality_classifier.predict(scaled_tweet))
+#     return "working"
+    
 class Todo(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     todo_text = db.Column(db.String(100), index = True)
@@ -82,7 +101,7 @@ class RegistrationForm(FlaskForm):
 # login form
 class LoginForm(FlaskForm):
   email = StringField('Email',
-                      validators=[DataRequired(), Email()])
+  validators=[DataRequired(), Email()])
   password = PasswordField('Password', validators=[DataRequired()])
   remember = BooleanField('Remember Me')
   submit = SubmitField('Login')
@@ -92,11 +111,27 @@ with app.app_context():
 
 @app.route('/', methods=["GET", "POST"])
 def index():
-    if 'todo' in request.form:
-        db.session.add(Todo(todo_text = request.form['todo']))
-        db.session.commit()
-    return render_template('index.html', todos = Todo.query.all(), template_form = TodoForm())
+    location = "--"
+    virality = "--"
+    sentiment = "--"
+    if request.method == 'POST':
+      tweet = str(request.form['tweet_value'])
+      location = predictLocation(tweet)
+      virality = predictVirality(tweet)
+      sentiment =  predictSentiment(tweet)
+    return render_template('index.html', location = location, virality=virality, sentiment=sentiment)
 
+# @app.route('/result', methods=["GET"])
+# def index():
+#     input_value = request.form.get('tweet_value')
+#     location = predictLocation(input_value)
+#     virality = predictVirality(input_value)
+#     sentiment = predictSentiment(input_value)
+#     return render_template('index.html', tweet = input_value, location = location, virality=virality, sentiment=sentiment)
+
+@app.route("/news")
+def news():
+  return render_template('news.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -140,31 +175,3 @@ def user(username):
   user = User.query.filter_by(username=username).first_or_404()
   return render_template('user.html', user=user)
 
-@app.route('/twitter/')
-def twitter():
-    # Twitter Oauth Config
-    TWITTER_CLIENT_ID = "xwHg79CTHMYVgeXvdF3EqPAdc"
-    TWITTER_CLIENT_SECRET = "MEPG2pTaciRDqD5kSmAENNzL9HKXoKYDO9gX6Ir1j4jZmo8m3H"
-    oauth.register(
-        name='twitter',
-        client_id=TWITTER_CLIENT_ID,
-        client_secret=TWITTER_CLIENT_SECRET,
-        request_token_url='https://api.twitter.com/oauth/request_token',
-        request_token_params=None,
-        access_token_url='https://api.twitter.com/oauth/access_token',
-        access_token_params=None,
-        authorize_url='https://api.twitter.com/oauth/authenticate',
-        authorize_params=None,
-        api_base_url='https://api.twitter.com/1.1/',
-        client_kwargs=None,
-    )
-    redirect_uri = url_for('twitter_auth', _external=True)
-    return oauth.twitter.authorize_redirect(redirect_uri)
- 
-@app.route('/twitter/auth/')
-def twitter_auth():
-    token = oauth.twitter.authorize_access_token()
-    resp = oauth.twitter.get('account/verify_credentials.json')
-    profile = resp.json()
-    print(" Twitter User", profile)
-    return redirect('/')
