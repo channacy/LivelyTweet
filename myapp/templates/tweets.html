@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+    
+<div class="relative overflow-x-auto flex items-center justify-center flex-row space-x-2 mt-2">
+    <table class="table-fixed w-2/3 text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400">
+        <thead class="text-xs text-gray-700 uppercase bg-gray-100 dark:bg-gray-700 dark:text-gray-400">
+            <tr>
+                <th scope="col" class="px-6 py-3">
+                    Tweet
+                </th>
+                <th scope="col" class="px-6 py-3">
+                    Location
+                </th>
+                <th scope="col" class="px-6 py-3">
+                    Virality
+                </th>
+                <th scope="col" class="px-6 py-3">
+                    Sentiment
+                </th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tweet in tweets %}
+            <tr class="bg-white dark:bg-gray-800">
+                <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                    {{tweet.tweet}}
+                </th>
+                <td class="px-6 py-4">
+                    {{tweet.predictedLocation}}
+                </td>
+                <td class="px-6 py-4">
+                    {{tweet.predictedVirality}}
+                </td>
+                <td class="px-6 py-4">
+                    {{tweet.predictedSentiment}}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %} 

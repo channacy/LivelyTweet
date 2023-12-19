@@ -1,7 +1,7 @@
 from app import app, db
-from flask import request, render_template, flash, redirect,url_for
+from flask import request, render_template, flash, redirect,url_for, session
 from models import User, Tweet
-from forms import RegistrationForm,LoginForm
+from forms import RegistrationForm,LoginForm, TweetForm
 from werkzeug.urls import url_parse
 from flask_login import current_user, login_user, logout_user, login_required
 from flask_wtf import FlaskForm
@@ -12,22 +12,56 @@ from flask_login import UserMixin, LoginManager, login_required, login_user, cur
 from datetime import datetime
 from authlib.integrations.flask_client import OAuth
 from helper import predictLocation, predictSentiment, predictVirality
+import requests 
+from config import NEWS_API_KEY
 
 @app.route('/', methods=["GET", "POST"])
 def index():
+    form = TweetForm()
     location = "--"
     virality = "--"
     sentiment = "--"
-    if request.method == 'POST':
-      tweet = str(request.form['tweet_value'])
-      location = predictLocation(tweet)
-      virality = predictVirality(tweet)
-      sentiment =  predictSentiment(tweet)
-    return render_template('index.html', location = location, virality=virality, sentiment=sentiment)
+    tweet = None
+    if request.form.get('tweet_value'):
+        tweet = str(request.form['tweet_value'])
+        location = predictLocation(tweet)
+        sentiment =  predictSentiment(tweet)
+        if current_user.is_authenticated:
+            user = current_user
+            user = User.query.filter_by(username=user.username).first()
+            numFriends = user.friendsCount
+            numFollowers = user.followersCount
+            virality = predictVirality(tweet,numFollowers, numFriends)
+            db.session.add(Tweet(tweet = request.form.get('tweet_value'), predictedLocation = location, predictedVirality = virality,predictedSentiment = sentiment, user_id=current_user.id))
+            db.session.commit()
+        
+    # else:
+    #     print("viral", virality)
+    #     db.session.add(Tweet(tweet = request.form.get('tweet_value'), predictedLocation = location, predictedVirality = virality,predictedSentiment = sentiment, user_id=current_user.id))
+    #     db.session.commit()
+    #     print("saved")
+    return render_template('index.html',tweet = tweet, location = location, virality=virality, sentiment=sentiment, form = form)
 
-@app.route("/news")
+@app.route("/news", methods=["GET"])
 def news():
-  return render_template('news.html')
+    api_key = NEWS_API_KEY
+    base_url = 'https://newsapi.org/v2/top-headlines'
+    params = {'country': 'us', 'apiKey': api_key}
+    
+    response = requests.get(base_url, params=params)
+    news_data = response.json().get('articles', [])
+
+    return render_template('news.html', news=news_data)
+
+@app.route("/saved", methods=["GET"])
+def savedTweets():       
+    user = current_user
+    userTweets = Tweet.query.filter_by(user_id=user.id).all()
+    return render_template('tweets.html', tweets=userTweets)
+
+@app.route("/profile", methods=["GET"])
+def profile():       
+  return render_template('profile.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -49,12 +83,10 @@ def login():
     
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-  #check if current_user logged in, if so redirect to a page that makes sense
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     form = RegistrationForm()
     if form.validate_on_submit():
-        #change this to match new parameters
         user = User(username=form.username.data, email=form.email.data, followersCount=form.followersCount.data, friendsCount = form.friendsCount.data)
         user.set_password(form.password.data)
         db.session.add(user)
@@ -67,6 +99,8 @@ def register():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+
 
 # @app.route('/user/<username>',methods=['GET', 'POST'])
 # @login_required

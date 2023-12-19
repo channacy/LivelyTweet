@@ -27,7 +27,8 @@ class Tweet(db.Model):
     tweet = db.Column(db.String(140))
     predictedLocation = db.Column(db.String(140))
     predictedVirality = db.Column(db.String(140))
-    predictedSentiment = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    predictedSentiment = db.Column(db.String(140))
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):

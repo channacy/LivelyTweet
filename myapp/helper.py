@@ -1,5 +1,6 @@
 from sklearn.preprocessing import scale
 import pickle 
+import re
 
 with open('models/locationClassifier.pkl', 'rb') as location_classifier:
     locationClassifier = pickle.load(location_classifier)
@@ -36,8 +37,19 @@ def predictSentiment(tweet):
    else:
     return "Negative"
 
-def predictVirality(tweet):
-    tweet_info = [[55, 100000, 1060, 5, 20, 30, 4]]
+def predictVirality(tweet, followersCount, friendsCount):
+    words = tweet.split()
+    numWords = len(words)
+    
+    hashtagsCount = len(re.findall(r'#\w+', tweet))
+    linksCount = len(re.findall(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', tweet))
+
+    totalWordLength = sum(len(word) for word in words)
+    avgWordLength = totalWordLength / numWords if numWords > 0 else 0
+
+    tweet_info = [[len(tweet), followersCount, friendsCount, hashtagsCount, linksCount, numWords, avgWordLength]]
     scaled_tweet = scale(tweet_info, axis = 0)
-    print(virality_classifier.predict(scaled_tweet))
-    return "NA"
+    if virality_classifier.predict(scaled_tweet)[0] == 0:
+        return "Low"
+    return "High"
+    
